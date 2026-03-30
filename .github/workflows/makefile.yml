@@ -1,27 +1,38 @@
-name: Makefile CI
+name: Build
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: configure
-      run: ./configure
+    - name: Install Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential clang ldid git wget xz-utils
 
-    - name: Install dependencies
-      run: make
+    - name: Install Theos
+      run: |
+        git clone --recursive https://github.com/theos/theos.git $HOME/theos
 
-    - name: Run check
-      run: make check
+    - name: Install SDK
+      run: |
+        mkdir -p $HOME/theos/sdks
+        cd $HOME/theos/sdks
+        wget https://github.com/theos/sdks/releases/latest/download/iPhoneOS16.5.sdk.tar.xz
+        tar -xf iPhoneOS16.5.sdk.tar.xz
 
-    - name: Run distcheck
-      run: make distcheck
+    - name: Build
+      run: |
+        export THEOS=$HOME/theos
+        make package FINALPACKAGE=1
+
+    - name: Upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: deb
+        path: packages/*.deb
